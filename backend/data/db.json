@@ -1,0 +1,97 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "David",
+      "username": "david_m",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+      "bio": "I am a software engineer",
+      "followers": [
+        "2"
+      ],
+      "following": [
+        "2",
+        "3"
+      ]
+    },
+    {
+      "id": "2",
+      "name": " Sahrah",
+      "username": "sara_k",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=sara",
+      "bio": "UI/UX Designer ",
+      "followers": [
+        "1",
+        "3"
+      ],
+      "following": [
+        "1"
+      ]
+    },
+    {
+      "id": "3",
+      "name": " John",
+      "username": "john",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=john",
+      "bio": "I am a teacher",
+      "followers": [
+        "1"
+      ],
+      "following": [
+        "2"
+      ]
+    },
+    {
+      "id": "4",
+      "name": "Mona",
+      "username": "mona_a",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=mona",
+      "bio": "I am a programmer",
+      "followers": [],
+      "following": []
+    }
+  ],
+  "posts": [
+    {
+      "id": "101",
+      "userId": "2",
+      "author": "Sarah",
+      "username": "sara_k",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=sara",
+      "content": "I finished the UI design for my new project! What do you think of the dark blue color scheme?",
+      "createdAt": "2026-07-05T10:00:00.000Z"
+    },
+    {
+      "id": "102",
+      "userId": "3",
+      "author": "John",
+      "username": "john",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=john",
+      "content": "I finished the UI design for my new project! What do you think of the dark blue color scheme?",
+      "createdAt": "2026-07-05T09:15:00.000Z"
+    },
+    {
+      "id": "103",
+      "userId": "1",
+      "author": "David",
+      "username": "david_m",
+      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+      "content": " I'm working on a new project",
+      "createdAt": "2026-07-05T08:30:00.000Z"
+    }
+  ],
+  "currentUser": {
+    "id": "1",
+    "name": " David",
+    "username": "david_m",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
+    "bio": "I am a software engineer ",
+    "followers": [
+      "2"
+    ],
+    "following": [
+      "2",
+      "3"
+    ]
+  }
+}
