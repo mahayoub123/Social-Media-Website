@@ -4,18 +4,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-const path = require('path');
-app.use(express.static(path.join(__dirname, '../dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist', 'index.html'));
-});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'data', 'db.json');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -273,6 +268,15 @@ app.post('/api/users/:id/toggle-follow', requireAuth, async (req, res) => {
     targetUser: toSafeUser(targetUser),
     isFollowing: !isFollowing
   });
+});
+
+// ---------------------------------------------------------
+// Serve React build (dist)
+// ---------------------------------------------------------
+app.use(express.static(path.join(__dirname, '../dist')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
