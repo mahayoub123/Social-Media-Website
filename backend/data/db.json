@@ -10,7 +10,6 @@
         "2"
       ],
       "following": [
-        "2",
         "3"
       ]
     },
@@ -21,7 +20,6 @@
       "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=sara",
       "bio": "UI/UX Designer ",
       "followers": [
-        "1",
         "3"
       ],
       "following": [
@@ -82,15 +80,14 @@
   ],
   "currentUser": {
     "id": "1",
-    "name": " David",
+    "name": "David",
     "username": "david_m",
     "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=david",
-    "bio": "I am a software engineer ",
+    "bio": "I am a software engineer",
     "followers": [
       "2"
     ],
     "following": [
-      "2",
       "3"
     ]
   }

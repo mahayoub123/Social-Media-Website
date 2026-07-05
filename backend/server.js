@@ -1,8 +1,8 @@
-
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,6 +15,9 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
+// ---------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------
 
 async function readDB() {
   try {
@@ -26,7 +29,6 @@ async function readDB() {
   }
 }
 
-
 async function writeDB(data) {
   try {
     await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf8');
@@ -36,20 +38,122 @@ async function writeDB(data) {
 }
 
 
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password, salt, expectedHash) {
+  const { hash } = hashPassword(password, salt);
+  return hash === expectedHash;
+}
+
+
+function toSafeUser(user) {
+  if (!user) return null;
+  const { password, salt, ...safeUser } = user;
+  return safeUser;
+}
+
+async function requireAuth(req, res, next) {
+  const db = await readDB();
+  if (!db.currentUser) {
+    return res.status(401).json({ error: 'You must be logged in to perform this action' });
+  }
+  req.db = db;
+  next();
+}
+
+// ---------------------------------------------------------
+// Auth: Sign up / Sign in / Logout
+// ---------------------------------------------------------
+
+app.post('/api/signup', async (req, res) => {
+  const { name, username, password, avatar } = req.body;
+
+  if (!name || !username || !password) {
+    return res.status(400).json({ error: 'Name, username and password are required' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  const db = await readDB();
+
+  const usernameTaken = db.users.some(
+    (u) => u.username.toLowerCase() === username.toLowerCase()
+  );
+  if (usernameTaken) {
+    return res.status(409).json({ error: 'Username is already taken' });
+  }
+
+  const { salt, hash } = hashPassword(password);
+
+  const newUser = {
+    id: Date.now().toString(),
+    name,
+    username,
+    avatar: avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+    password: hash,
+    salt,
+    following: [],
+    followers: []
+  };
+
+  db.users.push(newUser);
+  db.currentUser = newUser;
+  await writeDB(db);
+
+  res.status(201).json(toSafeUser(newUser));
+});
+
+app.post('/api/signin', async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({ error: 'You must enter a username and password' });
+  }
+
+  const db = await readDB();
+  const user = db.users.find(
+    (u) => u.username.toLowerCase() === username.toLowerCase()
+  );
+
+  if (!user || !verifyPassword(password, user.salt, user.password)) {
+    return res.status(401).json({ error: 'Username or password is incorrect' });
+  }
+
+  db.currentUser = user;
+  await writeDB(db);
+
+  res.json(toSafeUser(user));
+});
+
+app.post('/api/logout', async (req, res) => {
+  const db = await readDB();
+  db.currentUser = null;
+  await writeDB(db);
+  res.json({ message: 'You have been logged out successfully' });
+});
+
+// ---------------------------------------------------------
+// Posts
+// ---------------------------------------------------------
+
 app.get('/api/posts', async (req, res) => {
   const db = await readDB();
   const sortedPosts = [...db.posts].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json(sortedPosts);
 });
 
-
-app.post('/api/posts', async (req, res) => {
+app.post('/api/posts', requireAuth, async (req, res) => {
   const { content } = req.body;
   if (!content || content.trim() === '') {
     return res.status(400).json({ error: 'Post content cannot be empty' });
   }
 
-  const db = await readDB();
+  const db = req.db;
   const currentUser = db.currentUser;
 
   const newPost = {
@@ -58,7 +162,7 @@ app.post('/api/posts', async (req, res) => {
     author: currentUser.name,
     username: currentUser.username,
     avatar: currentUser.avatar,
-    content: content,
+    content,
     createdAt: new Date().toISOString()
   };
 
@@ -67,8 +171,7 @@ app.post('/api/posts', async (req, res) => {
   res.status(201).json(newPost);
 });
 
-
-app.put('/api/posts/:id', async (req, res) => {
+app.put('/api/posts/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { content } = req.body;
 
@@ -76,13 +179,12 @@ app.put('/api/posts/:id', async (req, res) => {
     return res.status(400).json({ error: 'Post content cannot be empty' });
   }
 
-  const db = await readDB();
-  const postIndex = db.posts.findIndex(p => p.id === id);
+  const db = req.db;
+  const postIndex = db.posts.findIndex((p) => p.id === id);
 
   if (postIndex === -1) {
     return res.status(404).json({ error: 'Post not found' });
   }
-
 
   if (db.posts[postIndex].userId !== db.currentUser.id) {
     return res.status(403).json({ error: 'Not allowed to edit this post' });
@@ -93,12 +195,11 @@ app.put('/api/posts/:id', async (req, res) => {
   res.json(db.posts[postIndex]);
 });
 
-
-app.delete('/api/posts/:id', async (req, res) => {
+app.delete('/api/posts/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const db = await readDB();
+  const db = req.db;
 
-  const postIndex = db.posts.findIndex(p => p.id === id);
+  const postIndex = db.posts.findIndex((p) => p.id === id);
 
   if (postIndex === -1) {
     return res.status(404).json({ error: 'Post not found' });
@@ -113,30 +214,34 @@ app.delete('/api/posts/:id', async (req, res) => {
   res.json({ message: 'Post deleted successfully', id });
 });
 
+// ---------------------------------------------------------
+// Users
+// ---------------------------------------------------------
 
 app.get('/api/users', async (req, res) => {
   const db = await readDB();
-  res.json(db.users);
+  res.json(db.users.map(toSafeUser));
 });
-
 
 app.get('/api/me', async (req, res) => {
   const db = await readDB();
-  res.json(db.currentUser);
+  if (!db.currentUser) {
+    return res.status(401).json({ error: 'غير مسجل دخول' });
+  }
+  res.json(toSafeUser(db.currentUser));
 });
 
-
-app.post('/api/users/:id/toggle-follow', async (req, res) => {
+app.post('/api/users/:id/toggle-follow', requireAuth, async (req, res) => {
   const { id: targetId } = req.params;
-  const db = await readDB();
+  const db = req.db;
   const currentUserId = db.currentUser.id;
 
   if (targetId === currentUserId) {
     return res.status(400).json({ error: 'You cannot follow yourself!' });
   }
 
-  const currentUserIndex = db.users.findIndex(u => u.id === currentUserId);
-  const targetUserIndex = db.users.findIndex(u => u.id === targetId);
+  const currentUserIndex = db.users.findIndex((u) => u.id === currentUserId);
+  const targetUserIndex = db.users.findIndex((u) => u.id === targetId);
 
   if (currentUserIndex === -1 || targetUserIndex === -1) {
     return res.status(404).json({ error: 'User not found' });
@@ -148,23 +253,19 @@ app.post('/api/users/:id/toggle-follow', async (req, res) => {
   const isFollowing = currentUser.following.includes(targetId);
 
   if (isFollowing) {
-
-    currentUser.following = currentUser.following.filter(id => id !== targetId);
-    targetUser.followers = targetUser.followers.filter(id => id !== currentUserId);
+    currentUser.following = currentUser.following.filter((id) => id !== targetId);
+    targetUser.followers = targetUser.followers.filter((id) => id !== currentUserId);
   } else {
-
     currentUser.following.push(targetId);
     targetUser.followers.push(currentUserId);
   }
 
-
   db.currentUser = currentUser;
-
   await writeDB(db);
 
   res.json({
-    currentUser,
-    targetUser,
+    currentUser: toSafeUser(currentUser),
+    targetUser: toSafeUser(targetUser),
     isFollowing: !isFollowing
   });
 });
